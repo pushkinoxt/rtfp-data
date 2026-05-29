@@ -1,0 +1,56 @@
+-- Migration 024: API surface documentation (no schema changes).
+--
+-- After migration 023, Supabase's built-in PostgREST automatically exposes
+-- every table and view in the public schema where anon/authenticated have
+-- SELECT privileges. This migration is a no-op SQL-wise; its purpose is to
+-- record what the public API surface is, so future reviewers can audit it
+-- without inspecting RLS rules and grants by hand.
+--
+-- PUBLIC API SURFACE (read-only):
+--
+-- Reference tables (joined to enrich most views):
+--   /rest/v1/country_codes
+--   /rest/v1/language_codes
+--
+-- Foundation views (migration 015):
+--   /rest/v1/amar_by_country
+--   /rest/v1/provider_overview
+--
+-- Government orders — Article 15(1)(a) (migration 016):
+--   /rest/v1/government_orders_by_country
+--   /rest/v1/government_orders_by_category
+--   /rest/v1/government_orders_summary
+--
+-- Notices and Trusted Flaggers — Article 15(1)(b) + Article 22 (migration 017):
+--   /rest/v1/notices_by_category
+--   /rest/v1/trusted_flagger_intensity
+--   /rest/v1/notice_response_times
+--
+-- Own-initiative moderation — Article 15(1)(c)+(d) (migration 018):
+--   /rest/v1/moderation_volume_comparison
+--   /rest/v1/automation_share_by_provider
+--   /rest/v1/restriction_type_breakdown
+--   /rest/v1/account_actions_summary
+--
+-- Appeals, disputes, misuse — Articles 20, 21, 23 (migration 019):
+--   /rest/v1/internal_complaints_summary
+--   /rest/v1/out_of_court_disputes
+--   /rest/v1/misuse_suspensions
+--
+-- Human resources — Article 42(2)(a) (migration 020):
+--   /rest/v1/human_moderators_by_language
+--
+-- Derived cross-cutting metrics (migration 021):
+--   /rest/v1/actions_per_user
+--   /rest/v1/amar_per_moderator
+--
+-- Data quality and disclosure transparency (migration 022):
+--   /rest/v1/filings_overview
+--   /rest/v1/anomalies_by_filing
+--   /rest/v1/disclosure_coverage
+--
+-- Base tables are technically queryable via /rest/v1/<table_name> too — same
+-- RLS grants apply. Documented but not advertised as the public API surface;
+-- consumers should use the views, which are the stable contract.
+
+SELECT 'Migration 024 is documentation-only; no schema changes applied.' AS notice;

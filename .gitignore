@@ -1,0 +1,29 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python bytecode and caches
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# macOS metadata
+.DS_Store
+
+# Editor-local settings (we use VS Code, but its workspace files are personal)
+.vscode/
+.idea/
+*.swp
+
+# Raw provider data lives in a sibling folder (../duck-dsa-reports/) and is
+# never inside this project, but in case anyone clones the repo and creates a
+# local 'data' or 'raw' folder for experiments, ignore those too.
+data/
+raw/
+*.csv

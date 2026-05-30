@@ -175,9 +175,29 @@ def main():
     df_raw.columns = [c.strip() for c in df_raw.columns]
     print(f"Read {len(df_raw)} rows from {csv_path.name}")
 
+    # Some providers capitalise column headers differently. Match
+    # column names case-insensitively, then rename actual columns
+    # to whatever case REQUIRED_COLUMN_MAP expects.
+    actual_lower_to_real = {c.lower().strip(): c for c in df_raw.columns}
+    rename_map = {}
+    for expected in REQUIRED_COLUMN_MAP.keys():
+        actual = actual_lower_to_real.get(expected.lower().strip())
+        if actual is not None and actual != expected:
+            rename_map[actual] = expected
+    if rename_map:
+        df_raw = df_raw.rename(columns=rename_map)
+        print(f"Normalised {len(rename_map)} column header case(s)")
+
+    # Per Annex II, not every provider populates every column. Treat missing
+    # columns as missing data: insert NULL for those columns rather than
+    # refusing the file. The "Description of the sub-category 'Other'" field
+    # is the most common omission (only used when a provider reports rows in
+    # the OTHER subcategory).
     missing = set(REQUIRED_COLUMN_MAP.keys()) - set(df_raw.columns)
     if missing:
-        sys.exit(f"CSV is missing expected columns: {missing}")
+        print(f"Warning: CSV missing {len(missing)} expected columns; inserting NULL for those: {sorted(missing)}")
+        for col in missing:
+            df_raw[col] = None
 
     # Forward-fill merged-cell exports BEFORE column renaming, so we
     # operate on the well-known CSV column names.

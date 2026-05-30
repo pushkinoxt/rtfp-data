@@ -109,7 +109,18 @@ def main():
 
         df["filing_id"] = filing_id
         df["source_file"] = csv_name
-
+        # Some providers' files contain duplicate rows under the unique key
+        # (filing_id, source_file, section, indicator, scope). The database
+        # rejects them. Drop duplicates here, keep the first occurrence,
+        # and report how many were dropped.
+        before = len(df)
+        df = df.drop_duplicates(
+            subset=["filing_id", "source_file", "section", "indicator", "scope"],
+            keep="first"
+        )
+        dropped = before - len(df)
+        if dropped > 0:
+            print(f"  {csv_name}: dropped {dropped} duplicate rows on (section, indicator, scope)")
         df.to_sql("indicators", engine, if_exists="append", index=False)
         print(f"  {csv_name}: loaded {len(df)} rows")
         grand_total += len(df)

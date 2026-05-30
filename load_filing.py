@@ -43,7 +43,7 @@ def parse_date(value):
     if value is None or str(value).strip() == "" or str(value).strip().lower() == "nan":
         return None
     s = str(value).strip()
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
+    for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
         try:
             return datetime.strptime(s, fmt).date()
         except ValueError:

@@ -230,6 +230,26 @@ def main():
     if len(df) < before:
         print(f"Dropped {before - len(df)} rows with empty category_code")
 
+    # Some providers (notably AliExpress) use non-conforming "scope" values
+    # to summarise multiple member states in one row. Example: "AT, [_], SE"
+    # is AliExpress's shorthand for "across all relevant member states." The
+    # database's scope check constraint requires TOTAL or a valid ISO-2 code,
+    # so we rewrite these to a synthetic scope marker and log an anomaly so
+    # the divergence is captured. The synthetic value starts with "_" by
+    # convention so downstream views can filter on it consistently.
+    def is_valid_scope(s):
+        if s is None:
+            return False
+        s = str(s).strip()
+        return s == "TOTAL" or (len(s) == 2 and s.isalpha() and s.isupper())
+
+    non_conforming = df[~df["scope"].apply(is_valid_scope)]
+    if len(non_conforming) > 0:
+        original_scopes = non_conforming["scope"].unique().tolist()
+        print(f"Warning: {len(non_conforming)} rows have non-conforming scope values; rewriting to '_NON_CONFORMING_RANGE'")
+        print(f"  Original scope values: {original_scopes}")
+        df.loc[~df["scope"].apply(is_valid_scope), "scope"] = "_NON_CONFORMING_RANGE"
+
     for col in NUMERIC_COLUMNS:
         df[col] = df[col].apply(strip_commas_for_numeric)
         df[col] = pd.to_numeric(df[col], errors="coerce")

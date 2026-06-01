@@ -41,8 +41,21 @@ def main():
     csv_path = Path(args.bundle) / CSV_NAME
     if not csv_path.exists():
         sys.exit(f"Cannot find {csv_path}")
-    df = pd.read_csv(csv_path)
-    print(f"Read {len(df)} rows from {csv_path.name}")
+    # Some providers (notably AliExpress) encode their CSVs in Latin-1
+    # rather than UTF-8. Try common encodings in order; the first one
+    # that succeeds wins.
+    df = None
+    for encoding in ("utf-8", "utf-8-sig", "iso-8859-1", "cp1252"):
+        try:
+            df = pd.read_csv(csv_path, encoding=encoding)
+            if encoding != "utf-8":
+                print(f"Note: read {CSV_NAME} as {encoding} (not UTF-8)")
+            break
+        except UnicodeDecodeError:
+            continue
+    if df is None:
+        sys.exit(f"Could not decode {csv_path} with any of the tried encodings")
+        print(f"Read {len(df)} rows from {csv_path.name}")
 
     # Keep only Indicator and Value
     if "Indicator" not in df.columns or "Value" not in df.columns:

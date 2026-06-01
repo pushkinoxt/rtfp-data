@@ -17,6 +17,7 @@ Idempotent: if a v1 filing already exists for (provider, period), the script
 reports it and exits without inserting a duplicate.
 """
 import os
+import re
 import sys
 import argparse
 from pathlib import Path
@@ -43,6 +44,8 @@ def parse_date(value):
     if value is None or str(value).strip() == "" or str(value).strip().lower() == "nan":
         return None
     s = str(value).strip()
+    s = re.sub(r'\s*\[Updated [^\]]+\]\s*', '', s)
+    s = re.sub(r'\s*\([^\)]+\)\s*', '', s)
     for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
         try:
             return datetime.strptime(s, fmt).date()

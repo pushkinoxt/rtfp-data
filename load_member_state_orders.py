@@ -171,7 +171,19 @@ def main():
     csv_path = Path(args.bundle) / CSV_NAME
     if not csv_path.exists():
         sys.exit(f"Cannot find {csv_path}")
-    df_raw = pd.read_csv(csv_path)
+    # Some providers (Temu, AliExpress) ship CSVs in Latin-1 instead of UTF-8.
+    # Try common encodings in order; the first that succeeds wins.
+    df_raw = None
+    for encoding in ("utf-8", "utf-8-sig", "iso-8859-1", "cp1252"):
+        try:
+            df_raw = pd.read_csv(csv_path, encoding=encoding)
+            if encoding != "utf-8":
+                print(f"Note: read {csv_path.name} as {encoding} (not UTF-8)")
+            break
+        except UnicodeDecodeError:
+            continue
+    if df_raw is None:
+        sys.exit(f"Could not decode {csv_path}")
     df_raw.columns = [c.strip() for c in df_raw.columns]
     print(f"Read {len(df_raw)} rows from {csv_path.name}")
 

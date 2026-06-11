@@ -51,6 +51,8 @@ def main():
     parser.add_argument("--provider", required=True)
     parser.add_argument("--period", required=True)
     parser.add_argument("--bundle", required=True)
+    parser.add_argument("--service-name", default=None,
+                        help="target one service of a multi-service provider, e.g. 'YouTube Ads'.")
     args = parser.parse_args()
 
     load_dotenv()
@@ -61,7 +63,8 @@ def main():
             SELECT f.id FROM filings f
             JOIN providers p ON p.id = f.provider_id
             WHERE p.slug = :slug AND f.period_label = :period AND f.version_number = 1
-        """), {"slug": args.provider, "period": args.period}).scalar()
+              AND (:service IS NULL OR f.service_name = :service)
+        """), {"slug": args.provider, "period": args.period, "service": args.service_name}).scalar()
 
     if filing_id is None:
         sys.exit(f"No filing found for {args.provider} {args.period}.")
@@ -115,9 +118,9 @@ def main():
                 df[col] = df[col].where(~df[col].isin(["", "nan", "NaN"]), None)
 
         before = len(df)
-        df = df[df["indicator"].notna() & df["section"].notna()]
+        df = df[df["indicator"].notna() & df["section"].notna() & df["scope"].notna()]
         if len(df) < before:
-            print(f"  {csv_name}: dropped {before - len(df)} rows with empty section/indicator")
+            print(f"  {csv_name}: dropped {before - len(df)} rows with empty section/indicator/scope")
 
         df["filing_id"] = filing_id
         df["source_file"] = csv_name

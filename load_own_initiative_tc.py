@@ -179,6 +179,8 @@ def main():
     parser.add_argument("--provider", required=True)
     parser.add_argument("--period", required=True)
     parser.add_argument("--bundle", required=True)
+    parser.add_argument("--service-name", default=None,
+                        help="target one service of a multi-service provider, e.g. 'YouTube Ads'.")
     args = parser.parse_args()
 
     load_dotenv()
@@ -189,7 +191,8 @@ def main():
             SELECT f.id FROM filings f
             JOIN providers p ON p.id = f.provider_id
             WHERE p.slug = :slug AND f.period_label = :period AND f.version_number = 1
-        """), {"slug": args.provider, "period": args.period}).scalar()
+              AND (:service IS NULL OR f.service_name = :service)
+        """), {"slug": args.provider, "period": args.period, "service": args.service_name}).scalar()
 
     if filing_id is None:
         sys.exit(f"No filing found for {args.provider} {args.period}.")
@@ -300,6 +303,17 @@ def main():
     for col in NUMERIC_COLUMNS:
         df[col] = df[col].apply(strip_commas_for_numeric)
         df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # Drop rows that carry no measure values at all. These are empty template
+    # scaffolding rows (e.g. Booking's unfilled KEYWORD_OTHER sub-rows under a
+    # category, including the literal "Text to detail the Other keyword" placeholder).
+    # They hold no reported figures, and two such blank rows under the same category
+    # collide on the unique key (filing, category, code, description). Each category's
+    # real total is carried on its own parent row, which is kept.
+    before = len(df)
+    df = df[~df[list(NUMERIC_COLUMNS)].isna().all(axis=1)]
+    if len(df) < before:
+        print(f"Dropped {before - len(df)} empty rows with no measure values")
 
     df["filing_id"] = filing_id
 

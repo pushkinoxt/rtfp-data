@@ -85,6 +85,12 @@ def main():
     parser.add_argument("--provider", required=True, help="provider slug, e.g. facebook")
     parser.add_argument("--period", required=True, help="period label, e.g. 2025-h2")
     parser.add_argument("--bundle", required=True, help="path to the CSV bundle folder")
+    parser.add_argument("--service-name", default=None,
+                        help="override the filing's service_name, e.g. 'YouTube Ads'. "
+                             "Defaults to the provider name read from file 01.")
+    parser.add_argument("--slug-suffix", default=None,
+                        help="append a suffix to the filing slug so a second service of the "
+                             "same provider/period stays unique, e.g. 'ads'.")
     args = parser.parse_args()
 
     load_dotenv()
@@ -115,16 +121,19 @@ def main():
         if provider_id is None:
             sys.exit(f"Provider '{args.provider}' not found. Seed it via a migration first.")
 
-        existing = conn.execute(text("""
-            SELECT id FROM filings
-            WHERE provider_id = :pid AND period_label = :period AND version_number = 1
-        """), {"pid": provider_id, "period": args.period}).scalar()
+        slug = f"{args.provider}/{args.period}"
+        if args.slug_suffix:
+            slug = f"{slug}/{args.slug_suffix}"
+        service_name = args.service_name if args.service_name else name_of_provider
+
+        existing = conn.execute(text(
+            "SELECT id FROM filings WHERE slug = :slug"
+        ), {"slug": slug}).scalar()
         if existing is not None:
-            print(f"Filing already exists (id {existing}) for {args.provider} {args.period}. "
+            print(f"Filing already exists (id {existing}) with slug '{slug}'. "
                   f"No insert performed.")
             return
 
-        slug = f"{args.provider}/{args.period}"
         filing_id = conn.execute(text("""
             INSERT INTO filings (
                 provider_id, slug, service_name,
@@ -143,7 +152,7 @@ def main():
         """), {
             "pid": provider_id,
             "slug": slug,
-            "service_name": name_of_provider,
+            "service_name": service_name,
             "pstart": period_start,
             "pend": period_end,
             "period": args.period,

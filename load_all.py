@@ -25,17 +25,23 @@ def main():
     parser.add_argument("--provider", required=True)
     parser.add_argument("--period", required=True)
     parser.add_argument("--bundle", required=True)
+    parser.add_argument("--service-name", default=None,
+                        help="pass through to each loader to target one service of a "
+                             "multi-service provider (e.g. 'YouTube' vs 'YouTube Ads').")
     args = parser.parse_args()
 
     failures = []
     for loader in LOADERS:
         print(f"\n=== Running {loader} ===")
-        result = subprocess.run([
+        cmd = [
             sys.executable, loader,
             "--provider", args.provider,
             "--period", args.period,
             "--bundle", args.bundle,
-        ])
+        ]
+        if args.service_name:
+            cmd += ["--service-name", args.service_name]
+        result = subprocess.run(cmd)
         if result.returncode != 0:
             failures.append(loader)
 

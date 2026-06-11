@@ -91,7 +91,15 @@ def main():
     parser.add_argument("--slug-suffix", default=None,
                         help="append a suffix to the filing slug so a second service of the "
                              "same provider/period stays unique, e.g. 'ads'.")
+    parser.add_argument("--version", type=int, default=1,
+                        help="version_number for this filing (default 1). Use a higher "
+                             "number to load a restatement as a separate version of the "
+                             "same provider/service/period, e.g. --version 2. Pair with "
+                             "--slug-suffix to keep the slug unique.")
     args = parser.parse_args()
+
+    if args.version < 1:
+        sys.exit("--version must be a positive integer.")
 
     load_dotenv()
     engine = create_engine(os.environ["DATABASE_URL"])
@@ -103,6 +111,17 @@ def main():
     previous_pub       = parse_date(meta.get(IND_PREV_PUB_DATE))
     period_start       = parse_date(meta.get(IND_PERIOD_START))
     period_end         = parse_date(meta.get(IND_PERIOD_END))
+
+    # this_version_published_on is always this version's own publication date.
+    # original_published_on is when the report was *first* published for this period:
+    # equal to this version's date for an original (version 1), but the earlier cited
+    # "previous publication" date for a restatement (version > 1) -- for a first
+    # restatement that previous publication is precisely the original. If a restatement
+    # somehow lacks a previous date, fall back to this version's date.
+    if args.version > 1 and previous_pub is not None:
+        first_published = previous_pub
+    else:
+        first_published = original_pub
 
     # Validate the essentials before touching the database.
     missing = []
@@ -134,19 +153,41 @@ def main():
                   f"No insert performed.")
             return
 
+        # A restatement (version > 1) must link to the filing it restates. By schema
+        # rule, version 1 has no link and version > 1 must have one. We point at the
+        # immediately-prior version of the same provider/service/period, so versions
+        # form a chain (v2 restates v1, v3 restates v2).
+        restates_id = None
+        if args.version > 1:
+            prev_v = args.version - 1
+            restates_id = conn.execute(text("""
+                SELECT id FROM filings
+                WHERE provider_id = :pid AND period_label = :period
+                  AND service_name = :service AND version_number = :prev
+            """), {"pid": provider_id, "period": args.period,
+                   "service": service_name, "prev": prev_v}).scalar()
+            if restates_id is None:
+                sys.exit(
+                    f"Cannot load version {args.version}: no version {prev_v} filing found "
+                    f"for {args.provider} {args.period} service '{service_name}' to restate. "
+                    f"Load the prior version first."
+                )
+
         filing_id = conn.execute(text("""
             INSERT INTO filings (
                 provider_id, slug, service_name,
                 period_start, period_end, period_label,
                 original_published_on, this_version_published_on,
                 previous_publication_date,
-                version_number, name_of_service_provider
+                version_number, name_of_service_provider,
+                restates_filing_id
             ) VALUES (
                 :pid, :slug, :service_name,
                 :pstart, :pend, :period,
-                :pub, :pub,
+                :firstpub, :pub,
                 :prevpub,
-                1, :name
+                :version, :name,
+                :restates
             )
             RETURNING id
         """), {
@@ -157,13 +198,19 @@ def main():
             "pend": period_end,
             "period": args.period,
             "pub": original_pub,
+            "firstpub": first_published,
             "prevpub": previous_pub,
             "name": name_of_provider,
+            "version": args.version,
+            "restates": restates_id,
         }).scalar()
 
     print(f"Created filing id {filing_id} for {args.provider} {args.period}")
     print(f"  Provider name (from file 01): {name_of_provider}")
     print(f"  Published:    {original_pub}")
+    if args.version > 1:
+        print(f"  First publ.:  {first_published}  (version {args.version} restatement)")
+        print(f"  Restates:     filing id {restates_id}")
     print(f"  Prev publish: {previous_pub}")
     print(f"  Period:       {period_start} to {period_end}")
 

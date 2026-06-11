@@ -152,6 +152,9 @@ def main():
     parser.add_argument("--provider", required=True)
     parser.add_argument("--period", required=True)
     parser.add_argument("--bundle", required=True)
+    parser.add_argument("--version", type=int, default=1,
+                        help="version_number of the filing to load into "
+                             "(default 1). Use 2+ for a restatement.")
     parser.add_argument("--service-name", default=None,
                         help="target one service of a multi-service provider, e.g. 'YouTube Ads'.")
     args = parser.parse_args()
@@ -163,9 +166,9 @@ def main():
         filing_id = conn.execute(text("""
             SELECT f.id FROM filings f
             JOIN providers p ON p.id = f.provider_id
-            WHERE p.slug = :slug AND f.period_label = :period AND f.version_number = 1
+            WHERE p.slug = :slug AND f.period_label = :period AND f.version_number = :version
               AND (:service IS NULL OR f.service_name = :service)
-        """), {"slug": args.provider, "period": args.period, "service": args.service_name}).scalar()
+        """), {"slug": args.provider, "period": args.period, "service": args.service_name, "version": args.version}).scalar()
 
     if filing_id is None:
         sys.exit(f"No filing found for {args.provider} {args.period}.")

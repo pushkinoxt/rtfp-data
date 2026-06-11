@@ -28,6 +28,9 @@ def main():
     parser.add_argument("--service-name", default=None,
                         help="pass through to each loader to target one service of a "
                              "multi-service provider (e.g. 'YouTube' vs 'YouTube Ads').")
+    parser.add_argument("--version", type=int, default=1,
+                        help="pass through to each loader to target a specific filing "
+                             "version (default 1). Use 2+ to load into a restatement.")
     args = parser.parse_args()
 
     failures = []
@@ -41,6 +44,8 @@ def main():
         ]
         if args.service_name:
             cmd += ["--service-name", args.service_name]
+        if args.version != 1:
+            cmd += ["--version", str(args.version)]
         result = subprocess.run(cmd)
         if result.returncode != 0:
             failures.append(loader)

@@ -88,9 +88,18 @@ def main():
     parser.add_argument("--service-name", default=None,
                         help="override the filing's service_name, e.g. 'YouTube Ads'. "
                              "Defaults to the provider name read from file 01.")
+    # CONVENTION (load-bearing): an advertising service of a provider that also
+    # files a main service MUST be loaded with --slug-suffix ads, giving a slug
+    # ending in '/ads'. The primary_current_filings view (migration 051) excludes
+    # exactly those /ads filings so provider-level analytical views resolve to one
+    # main-service row per provider. Use a different suffix (e.g. /restated, set
+    # automatically for restatements) for anything that is NOT an ad service, or it
+    # will be silently dropped from the analytical layer.
     parser.add_argument("--slug-suffix", default=None,
                         help="append a suffix to the filing slug so a second service of the "
-                             "same provider/period stays unique, e.g. 'ads'.")
+                             "same provider/period stays unique. Use 'ads' for an advertising "
+                             "service (slug '/ads' is excluded from provider-level views by "
+                             "primary_current_filings); see the convention note above.")
     parser.add_argument("--version", type=int, default=1,
                         help="version_number for this filing (default 1). Use a higher "
                              "number to load a restatement as a separate version of the "

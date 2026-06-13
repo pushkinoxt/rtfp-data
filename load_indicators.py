@@ -127,18 +127,20 @@ def main():
 
         df["filing_id"] = filing_id
         df["source_file"] = csv_name
-        # Some providers' files contain duplicate rows under the unique key
-        # (filing_id, source_file, section, indicator, scope). The database
-        # rejects them. Drop duplicates here, keep the first occurrence,
-        # and report how many were dropped.
+        # Some providers' files legitimately carry more than one row per
+        # (section, indicator, scope): the adult-content services report each
+        # detection tool's accuracy/precision/recall separately, with the tool in
+        # the context column. So the unique key (and this dedup) includes context
+        # (migration 054); only byte-identical rows are genuine duplicates. Keep
+        # the first occurrence of each and report how many were dropped.
         before = len(df)
         df = df.drop_duplicates(
-            subset=["filing_id", "source_file", "section", "indicator", "scope"],
+            subset=["filing_id", "source_file", "section", "indicator", "scope", "context"],
             keep="first"
         )
         dropped = before - len(df)
         if dropped > 0:
-            print(f"  {csv_name}: dropped {dropped} duplicate rows on (section, indicator, scope)")
+            print(f"  {csv_name}: dropped {dropped} duplicate rows on (section, indicator, scope, context)")
         df.to_sql("indicators", engine, if_exists="append", index=False)
         print(f"  {csv_name}: loaded {len(df)} rows")
         grand_total += len(df)

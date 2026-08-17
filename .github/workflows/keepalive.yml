@@ -1,0 +1,29 @@
+name: Keep Supabase awake
+
+# The free Supabase project pauses after seven days with no API requests, which
+# would break the next site build until it is resumed by hand. This pings the
+# public API every few days so the project stays awake during quiet stretches.
+#
+# Requires two repository secrets (Settings -> Secrets and variables -> Actions):
+#   SUPABASE_URL  the project REST base, e.g. https://xxxx.supabase.co
+#   SUPABASE_KEY  the publishable (anon) key, read-only
+
+on:
+  schedule:
+    - cron: "0 6 */3 * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the public API
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/provider_overview?select=provider_slug&limit=1")
+          echo "HTTP $status"
+          if [ "$status" != "200" ]; then
+            echo "Keep-alive ping failed"
+            exit 1
+          fi
